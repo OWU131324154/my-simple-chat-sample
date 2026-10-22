@@ -1,19 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Socket.IO chat</title>
     <style>
-      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-      #input:focus { outline: none; }
-      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
-      #messages { list-style-type: none; margin: 0; padding: 0; width: 100%; }
+      :root {
+        color-scheme: light;
+        --purple-800: #552b91;
+        --purple-700: #7040b5;
+        --purple-200: #e5d8fa;
+        --ink: #34264a;
+        --muted: #827493;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding-bottom: 5rem;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: radial-gradient(ellipse at top left, #f6efff 0, transparent 52%),
+          linear-gradient(145deg, #f4edff, #e9ddfa 65%, #e4d6f7);
+      }
+      .chat-header {
+        padding: 1.35rem 1rem;
+        background: linear-gradient(115deg, #482078, #7040b5 58%, #8052c7);
+        color: #fff;
+        box-shadow: 0 5px 18px rgba(62, 29, 104, 0.22);
+      }
+      .chat-header-inner {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        width: min(100%, 920px);
+        margin: 0 auto;
+      }
+      .chat-mark {
+        display: grid;
+        width: 2.8rem;
+        height: 2.8rem;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.16);
+        font-size: 1.4rem;
+      }
+      .chat-header h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        letter-spacing: 0.04em;
+      }
+      .chat-header p {
+        margin: 0.2rem 0 0;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.8rem;
+      }
+      #form {
+        position: fixed;
+        z-index: 1;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        gap: 0.6rem;
+        height: 4.5rem;
+        padding: 0.65rem max(1rem, calc((100vw - 920px) / 2));
+        border-top: 1px solid rgba(112, 64, 181, 0.12);
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(14px);
+      }
+      #input {
+        min-width: 0;
+        flex-grow: 1;
+        padding: 0 1.1rem;
+        border: 1px solid var(--purple-200);
+        border-radius: 1.5rem;
+        outline: none;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        box-shadow: 0 2px 8px rgba(68, 37, 105, 0.04);
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      #input::placeholder { color: #a99bb8; }
+      #input:focus { border-color: var(--purple-700); box-shadow: 0 0 0 3px rgba(112, 64, 181, 0.13); }
+      #form > button {
+        flex-shrink: 0;
+        padding: 0 1.35rem;
+        border: 0;
+        border-radius: 1.5rem;
+        background: linear-gradient(135deg, #8052c7, #6032a2);
+        color: #fff;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(85, 43, 145, 0.22);
+        transition: filter 150ms ease, transform 150ms ease;
+      }
+      #form > button:hover { filter: brightness(1.08); }
+      #form > button:active { transform: translateY(1px); }
+      #form > button:focus-visible { outline: 3px solid #cdb4f3; outline-offset: 2px; }
+      #messages { list-style: none; width: 100%; margin: 0; padding: 0; }
       .message-item {
         display: flex;
         align-items: flex-start;
-        margin-bottom: 1rem;
-        max-width: 70%;
+        max-width: min(78%, 760px);
+        margin-bottom: 1.15rem;
       }
       .message-item.me {
         margin-left: auto;
@@ -23,8 +116,10 @@
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        margin: 0 10px;
+        margin: 0 0.65rem;
         flex-shrink: 0;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 2px 8px rgba(68, 37, 105, 0.12);
       }
       .message-content {
         display: flex;
@@ -35,7 +130,8 @@
       }
       .username {
         font-size: 0.8rem;
-        color: #555;
+        color: var(--purple-800);
+        font-weight: 600;
       }
       .message-meta {
         display: flex;
@@ -48,37 +144,67 @@
       }
       .timestamp {
         font-size: 0.7rem;
-        color: #888;
+        color: var(--muted);
       }
       .message-bubble {
-        padding: 0.5rem 1rem;
-        border-radius: 1rem;
+        padding: 0.7rem 1rem;
+        border: 1px solid rgba(100, 67, 145, 0.08);
+        border-radius: 0.35rem 1.15rem 1.15rem 1.15rem;
         word-wrap: break-word;
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+        box-shadow: 0 3px 10px rgba(68, 37, 105, 0.06);
       }
       .me .message-bubble {
-        background: #dcf8c6;
+        border-color: transparent;
+        border-radius: 1.15rem 0.35rem 1.15rem 1.15rem;
+        background: linear-gradient(135deg, #8052c7, #6839aa);
+        color: #fff;
       }
       .other .message-bubble {
-        background: #efefef;
+        background: rgba(255, 255, 255, 0.92);
       }
       .system-message {
+        width: fit-content;
         text-align: center;
-        color: #888;
-        font-style: italic;
-        margin: 0.5rem auto;
-        font-size: 0.9rem;
+        color: #725f8c;
+        margin: 1rem auto 1.25rem;
+        padding: 0.4rem 0.85rem;
+        border: 1px solid rgba(112, 64, 181, 0.1);
+        border-radius: 2rem;
+        background: rgba(255, 255, 255, 0.62);
+        font-size: 0.82rem;
       }
       #messages-container {
-        padding: 1rem;
+        width: min(100%, 960px);
+        margin: 0 auto;
+        padding: 1.5rem 1rem 2rem;
+      }
+      @media (max-width: 600px) {
+        #messages-container { padding: 1rem 0.6rem 1.5rem; }
+        .message-item { max-width: 90%; }
+        .user-icon { width: 34px; height: 34px; margin: 0 0.45rem; }
+        .message-bubble { padding: 0.6rem 0.8rem; }
+        #form { gap: 0.45rem; padding: 0.6rem 0.7rem; }
+        #form > button { padding: 0 1.05rem; }
       }
     </style>
   </head>
   <body>
+    <header class="chat-header">
+      <div class="chat-header-inner">
+        <div class="chat-mark" aria-hidden="true">✦</div>
+        <div>
+          <h1>チャットルーム</h1>
+          <p>メッセージを送って会話を始めましょう</p>
+        </div>
+      </div>
+    </header>
     <div id="messages-container">
       <ul id="messages"></ul>
     </div>
     <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
+      <input id="input" autocomplete="off" placeholder="メッセージを入力..." /><button>送信</button>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -101,8 +227,7 @@
         for (let i = 0; i < id.length; i++) {
           hash = id.charCodeAt(i) + ((hash << 5) - hash);
         }
-        const h = Math.abs(hash % 360);
-        return `hsl(${h}, 60%, 65%)`;
+        return `hsl(${260 + Math.abs(hash % 40)}, 52%, 76%)`;
       }
 
       function displaySystemMessage(message) {
